@@ -7,7 +7,7 @@ use ratatui::{
     },
     crossterm::{
         event::{
-            self, Event, KeyCode},
+            self, Event, KeyCode, KeyModifiers},
     },
     layout::{
         Alignment, Constraint, Direction, Layout
@@ -35,14 +35,23 @@ const ASCII_NAME :&str = r"
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum MenuItem{
     Cli,
-    Ui
+    Ui,
+    Cal
 }
 
 impl MenuItem{
     fn next(self) -> Self{
         match self {
             MenuItem::Cli => MenuItem::Ui,
-            MenuItem::Ui => MenuItem::Cli
+            MenuItem::Ui => MenuItem::Cal,
+            MenuItem::Cal => MenuItem::Cli
+        }
+    }
+    fn prev(self) -> Self  {
+        match self {
+            MenuItem::Cli => MenuItem::Cal,
+            MenuItem::Ui => MenuItem::Cli,
+            MenuItem::Cal => MenuItem::Ui
         }
     }
 }
@@ -81,13 +90,20 @@ fn run(mut _terminal: DefaultTerminal) -> Result<()> {
                 KeyCode::Esc => {
                     break;
                 }
-                KeyCode::Tab | KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down => {
+                KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => {
+                    break;
+                }
+                KeyCode::Tab | KeyCode::Right | KeyCode::Down => {
                     app.selected_item = app.selected_item.next();
+                }
+                KeyCode::Left | KeyCode::Up => {
+                    app.selected_item = app.selected_item.prev();
                 }
                 KeyCode::Enter => {
                     match app.selected_item {
                         MenuItem::Ui => {}
                         MenuItem::Cli => {}
+                        MenuItem::Cal => {}
                     }
                 }
                 _ => {}
@@ -131,14 +147,16 @@ fn render(frame: &mut Frame, app: &AppState) {
 
     let btn_cli = button_span("  ⌨  Línea de comandos  ", app.selected_item == MenuItem::Cli);
     let btn_ui  = button_span("  ▦  Interfaz visual    ", app.selected_item == MenuItem::Ui);
+    let btn_cal  = button_span("  λ  subnet   ", app.selected_item == MenuItem::Cal);
 
     let buttons = Line::from(vec![
-        Span::raw("         "), btn_cli,
-        Span::raw("   "), btn_ui,
+        Span::raw("     "), btn_cli,
+        Span::raw("     "), btn_ui,
+        Span::raw("     "), btn_cal,
     ]);
 
     let hint = Line::from(Span::styled(
-        "▲▼ ◀▶ navegar  |  Enter seleccionar  |  Esc salir",
+        "▲ ▼ ◀ ▶ navegar  |  Enter seleccionar  |  Esc salir",
         Style::default().fg(Color::Gray),
     ));
 
@@ -172,7 +190,7 @@ fn render(frame: &mut Frame, app: &AppState) {
         .split(area);
 
     let status = Paragraph::new(Line::from(vec![
-        Span::styled(" NetCli | ESC Salir", Style::default().bg(Color::Blue).fg(Color::White)),
+        Span::styled(" Ctrl+C | ESC : para Salir", Style::default().bg(Color::Blue).fg(Color::White)),
     ]));
 
     frame.render_widget(status, status_chunks[1]);
